@@ -2,13 +2,68 @@ import './styles.css';
 import Hero from './Hero';
 import { useState } from 'react';
 import JobCard from './JobCard';
-
+import { gql, useQuery } from '@apollo/client';
+import {useEffect} from 'react'
+const LIST_JOBS = gql`
+  {
+    listJobs {
+      data {
+        id
+        title
+        description
+        type
+        station
+        level
+      }
+    }
+  }
+  `
 function App() {
   const [searchValue, setSearchValue] = useState('')
   const [jobLevel, setJobLevel] = useState([])
   const [jobType, setJobType] = useState([])
   const [jobStation, setJobStation] = useState([])
+  
+  const {data} = useQuery(LIST_JOBS)
+  const [filteredJobs, setFilteredJobs] = useState([])
 
+  const handleSearch = (e) => {
+    e.preventDefault();
+    const filtered = data.listJobs.data.filter((job) => 
+      job.title.toLowerCase().includes(searchValue.toLowerCase())
+    )
+    setFilteredJobs(filtered)
+  }
+
+  useEffect(() => {
+    if(data){
+      setFilteredJobs(data.listJobs.data)
+    }
+  }, [data])
+  useEffect(() => {
+    if(data) {
+      let filtered = data.listJobs.data
+      // for jobLevel select
+      if(jobLevel.length) {
+        filtered = filtered.filter((job) => 
+          jobLevel.includes(job.level)
+        )
+      }
+      // for jobStation select
+      if(jobStation.length) {
+        filtered = filtered.filter((job) => 
+          jobStation.includes(job.station)
+        )
+      }
+      // for jobType select
+      if(jobType.length) {
+        filtered = filtered.filter((job) => 
+          jobType.includes(job.type)
+        )
+      }
+      setFilteredJobs(filtered)
+    }
+  }, [jobType, jobStation, jobLevel, data])
   return (
     <div className="app">
       <Hero 
@@ -20,16 +75,22 @@ function App() {
         setJobStation={setJobStation}
         jobType={jobType}
         setJobType={setJobType}
+        queryToRefresh={LIST_JOBS}
+        onSearch={handleSearch}
       />
       <div className='jobs wrapper'>
+      {filteredJobs.map((job) => (
         <JobCard 
-          title='JavaScript developer'
-          station='Remote'
-          type='Full-time'
-          level='Entery level'
-          description='Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas sollicitudin nulla turpis, ac convallis ligula euismod ut. Sed volutpat ac ligula a consectetur. Aenean ultrices finibus tellus, sit amet aliquet orci.'
+          key={job.id}
+          id={job.id}
+          title={job.title}
+          station={job.station}
+          type={job.type}
+          level={job.level}
+          description={job.description}
         />
-      </div>
+  ))}
+</div>
     </div>
   );
 }

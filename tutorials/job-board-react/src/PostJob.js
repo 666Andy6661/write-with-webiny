@@ -1,7 +1,39 @@
 import { useState } from "react"
 import Input from "./Input"
 import Select from "./Select"
+import { gql, useMutation } from '@apollo/client';
 
+
+const POST_JOB = gql`
+  mutation CreateJob(
+    $title: String
+    $description: String
+    $type: String
+    $station: String
+    $level: String
+  ){ 
+  createJob(data: {
+    title: $title
+    description: $description
+    type: $type
+    station: $station
+    level: $level
+  }) {
+    data {
+      id
+    } 
+  }
+}`
+
+const PUBLISH_JOB = gql`
+mutation PublishJob($revision: ID!) {
+  publishJob(revision: $revision) {
+    data {
+      id
+    }
+  }
+}
+`
 function PostJob({jobLevelOptions, jobTypeOptions, jobStationOptions, closeModal, queryToRefresh}) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -13,9 +45,38 @@ function PostJob({jobLevelOptions, jobTypeOptions, jobStationOptions, closeModal
     jobType: false, 
     jobStation: false
   })
+  
+  const [postJob, { loading }] = useMutation(POST_JOB, {
+  context: {endpointType: 'manage'},
+  refetchQueries: [
+    {query: queryToRefresh}
+  ],
+});
+
+  const [publishJob] = useMutation(PUBLISH_JOB, {
+  context: {endpointType: 'manage'}
+})
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    postJob({ variables: {
+      title,
+      description,
+      type: jobType,
+      station: jobStation,
+      level: jobLevel
+    }}).then(({data}) => {
+      publishJob({
+        variables: {
+          revision: data.createJob.data.id
+        }
+      })
+      closeModal()
+    })
+  }
 
   return (
-    <form name='postJob' className="postJob">
+    <form name='postJob' className="postJob" onSubmit={handleSubmit} >
         <Input
           label='Job title'
           required={true}
@@ -98,6 +159,7 @@ function PostJob({jobLevelOptions, jobTypeOptions, jobStationOptions, closeModal
               </span>
             ))}
           </Select>
+          
         </div>
         <button>Post</button>
       </form>
