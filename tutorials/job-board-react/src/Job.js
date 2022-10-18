@@ -1,6 +1,39 @@
 import { useState } from "react"
 import Input from "./Input"
+import { gql, useMutation } from '@apollo/client';
 
+const APPLY_FOR_JOB = gql`
+  mutation CreateApplication(
+    $name: String
+    $email: String
+    $website: String
+    $linkedinProfile: String
+    $phoneNumber: Number
+    $ref: RefFieldInput
+  ){ 
+    createApplication(data: {
+    name: $name
+    email: $email
+  	website: $website
+    linkedinProfile: $linkedinProfile
+    phoneNumber: $phoneNumber
+    ref: $ref
+  }) {
+    data {
+      id
+    } 
+  }
+}`
+
+const PUBLISH_APPLICATION = gql`
+mutation PublishApplication($revision: ID!) {
+  publishApplication(revision: $revision) {
+    data {
+      id
+    }
+  }
+}
+`
 function Job({
   station,
   level,
@@ -15,7 +48,36 @@ function Job({
   const [email, setEmail] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [website, setWebsite] = useState('')
-  const [linkedInProfile, setlinkedInProfile] = useState('')
+  const [linkedinProfile, setlinkedinProfile] = useState('')
+
+  const [applyForJob] = useMutation(APPLY_FOR_JOB, {
+    context: {endpointType: 'manage'},
+  }); 
+  const [publishApplication] = useMutation(PUBLISH_APPLICATION, {
+    context: {endpointType: 'manage'},
+  })
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    applyForJob({ variables: {
+      name,
+      email,
+      website,
+      linkedinProfile,
+      phoneNumber,
+      ref: {
+        modelId: "JOB",
+        id
+      }
+    }}).then(({data}) => {
+      publishApplication({
+        variables: {
+          revision: data.createApplication.data.id
+        }
+      })
+      closeModal()
+    })
+  }
 
   return (
     <div className='job'>
@@ -37,7 +99,7 @@ function Job({
 
       <div className="job__apply">
         <h2>Submit Your Application</h2>
-        <form name='applicationForm'>
+        <form name='applicationForm' onSubmit={handleSubmit}>
           <Input
             label='Full name'
             required={true}
@@ -65,10 +127,10 @@ function Job({
             setValue={(e) => setWebsite(e.target.value)}
           />
           <Input
-            label='LinkedIn Profile'
+            label='Linkedin Profile'
             required={true}
-            value={linkedInProfile}
-            setValue={(e) => setlinkedInProfile(e.target.value)}
+            value={linkedinProfile}
+            setValue={(e) => setlinkedinProfile(e.target.value)}
           />
           <button>Submit Application</button>
         </form>
